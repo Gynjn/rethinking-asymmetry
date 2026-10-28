@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en" style="color-scheme: light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rethinking Asymmetry in Self-Supervised 3D Geometry Learning</title>
+<meta name="description" content="A self-supervised model that recovers camera poses and 3D geometry from unposed images by placing the context/held-out asymmetry in the 3D representation rather than in the input.">
+<style>
+:root {
+  --bg: #ffffff;
+  --surface: #f6f5fb;
+  --ink: #1b1a22;
+  --ink-2: #4a4858;
+  --ink-3: #75738a;
+  --rule: #e4e2ee;
+  --accent: #6a3fe0;
+  --accent-soft: #efeafd;
+  --best-bg: #efeafd;
+  --code-bg: #f3f2f8;
+  --maxw: 940px;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+main { max-width: var(--maxw); margin: 0 auto; padding: 0 16px 64px; }
+a { color: var(--accent); }
+h1 { font-size: clamp(22px, 3.4vw, 34px); line-height: 1.2; margin: 48px 0 14px; text-align: center; letter-spacing: -0.01em; }
+h2 { font-size: 22px; margin: 56px 0 12px; padding-top: 8px; border-top: 1px solid var(--rule); }
+h3 { font-size: 16.5px; margin: 32px 0 8px; }
+p { margin: 10px 0; color: var(--ink-2); }
+p strong, li strong { color: var(--ink); }
+.authors { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 13px; font-size: 14px; margin: 0 auto; }
+.authors span { white-space: nowrap; }
+.authors a { color: var(--ink); text-decoration: none; }
+.authors a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.authors br { display: none; }
+.affil { text-align: center; color: var(--ink-3); font-size: 12.5px; margin: 6px 0 0; }
+.links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 22px 0 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+  background: var(--ink); color: var(--bg); text-decoration: none; font-size: 12.5px; font-weight: 600; }
+.btn.soon { background: var(--surface); color: var(--ink-3); border: 1px solid var(--rule); cursor: default; }
+figure { margin: 30px 0; }
+figure img, figure video { width: 100%; height: auto; display: block; border-radius: 8px; }
+.paperfig { background: #fff; border: 1px solid var(--rule); border-radius: 12px; padding: 18px 20px 14px; margin: 24px 0; }
+.paperfig img { border-radius: 0; padding: 0; background: none; max-height: 300px; width: auto; max-width: 100%; margin: 0 auto; }
+.paperfig figcaption { color: #6a6880; margin-top: 12px; }
+.figrow { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 16px; margin: 24px 0; }
+.figrow .tall { grid-row: span 2; }
+.figcard { margin: 0; background: #fff; border: 1px solid var(--rule); border-radius: 14px; padding: 14px 18px 18px;
+  display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(20,18,40,0.04), 0 6px 18px rgba(20,18,40,0.05); }
+.figcard img { flex: 1; width: 100%; height: auto; max-height: 260px; object-fit: contain; margin: 6px auto 0; border-radius: 0; }
+.figcard.tall img { max-height: 520px; }
+.figlabel { align-self: flex-start; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #6a3fe0;
+  background: #efeafd; padding: 3px 9px; border-radius: 999px; }
+.rowcap { color: var(--ink-3); font-size: 12.5px; line-height: 1.55; margin: 12px 2px 0; }
+.rowcap strong { color: var(--ink-2); }
+
+.figrow .tall img { max-height: 440px; }
+.figrow .paperfig { margin: 0; display: flex; flex-direction: column; }
+.figrow .paperfig img { flex: 1; object-fit: contain; max-height: 300px; }
+.figrow .paperfig > :first-child { margin-top: auto; margin-bottom: auto; }
+@media (max-width: 760px) { .figrow { grid-template-columns: 1fr; } }
+figcaption { color: var(--ink-3); font-size: 12.5px; line-height: 1.5; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid2 figure { margin: 0; }
+@media (max-width: 560px) { .layout main { padding: 0 16px 56px; } }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+.vid figcaption { text-align: center; }
+.callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+.callout p { margin: 4px 0; color: var(--ink); }
+.eq { font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif; font-size: 16px; text-align: center;
+  background: var(--code-bg); border-radius: 8px; padding: 12px; margin: 14px 0; color: var(--ink); overflow-x: auto; }
+.tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 18px 0 6px; border: 1px solid var(--rule); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+th, td { padding: 5px 6px; text-align: center; white-space: nowrap; border-bottom: 1px solid var(--rule); }
+thead th { background: var(--surface); color: var(--ink); font-weight: 600; }
+thead tr:first-child th { border-bottom: 1px solid var(--rule); }
+td:first-child, th:first-child { text-align: left; }
+tbody tr:last-child td { border-bottom: none; }
+td.b { font-weight: 700; color: var(--ink); background: var(--best-bg); }
+td.ours, tr.ours td:first-child { color: var(--accent); font-weight: 600; }
+td.sep, th.sep { border-left: 1px solid var(--rule); }
+.tcap { color: var(--ink-3); font-size: 12px; margin: 4px 0 18px; }
+ul { color: var(--ink-2); padding-left: 22px; }
+li { margin: 6px 0; }
+pre { background: var(--code-bg); color: var(--ink); padding: 14px 16px; border-radius: 10px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; }
+footer { color: var(--ink-3); font-size: 13px; text-align: center; margin-top: 64px; }
+.traj { border: 1px solid var(--rule); border-radius: 12px; padding: 14px; background: var(--bg); }
+.traj-controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; }
+.traj-sel { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--ink-3); }
+.traj-sel select { font: inherit; font-size: 13.5px; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 6px 8px; min-width: 180px; max-width: 100%; }
+.traj-nav { display: flex; gap: 6px; margin-left: auto; }
+.traj-nav button { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 6px 12px; cursor: pointer; min-height: 36px; }
+.traj-nav button:hover { border-color: var(--accent); }
+.traj-thumbs { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin: 12px 0 8px; }
+.traj-thumbs img { width: 100%; aspect-ratio: 1; height: auto; display: block; border-radius: 4px; }
+@media (max-width: 560px) { .traj-thumbs { grid-template-columns: repeat(5, 1fr); } }
+.traj-panels { display: grid; grid-template-columns: repeat(var(--n, 3), 1fr); gap: 10px; }
+.traj-panels { gap: 8px; }
+.traj-panel { border-radius: 10px; overflow: hidden; background: #0e0f14; border: 1px solid #1f2130; }
+.traj-head { text-align: center; padding: 10px 8px 0; background: #0e0f14; }
+.traj-head .nm { font-size: 14.5px; font-weight: 700; }
+.traj-head .mt { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 12px; font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.92; }
+.traj-head .mt .best { font-weight: 700; opacity: 1; }
+.traj-plot { width: 100%; height: 330px; display: block; cursor: grab; touch-action: none; }
+.traj-plot:active { cursor: grabbing; }
+.traj-msg, .traj-hint { color: var(--ink-3); font-size: 12.5px; margin: 8px 2px 0; }
+@media (max-width: 760px) { .traj-panels { grid-template-columns: 1fr; } .traj-plot { height: 300px; } .traj-nav { margin-left: 0; } }
+
+/* layout with left table of contents */
+.layout { display: grid; grid-template-columns: 200px minmax(0, var(--maxw)) 200px; gap: 56px; justify-content: center; padding: 0 40px; }
+@media (max-width: 1560px) { .layout { grid-template-columns: 190px minmax(0, var(--maxw)) 60px; gap: 48px; } }
+.layout main { max-width: none; margin: 0; padding: 0 0 64px; min-width: 0; }
+.toc { position: sticky; top: 0; align-self: start; max-height: 100vh; overflow-y: auto; padding: 56px 0 24px; font-size: 13px; }
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc ol ol { margin: 2px 0 8px; }
+.toc a { display: block; padding: 4px 10px; border-left: 2px solid var(--rule); color: var(--ink-2); text-decoration: none; line-height: 1.35; }
+.toc li.sub a { padding-left: 22px; font-size: 12px; color: var(--ink-3); }
+.toc a:hover { color: var(--ink); border-left-color: var(--ink-3); }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.toc .toc-top { font-weight: 700; color: var(--ink); margin-bottom: 6px; border-left-color: transparent; }
+h2[id], h3[id], h1[id] { scroll-margin-top: 16px; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+.toc-open { display: none; }
+.toc-scrim { position: fixed; inset: 0; background: rgba(10, 10, 16, 0.38); z-index: 40; }
+@media (max-width: 1180px) {
+  .layout { display: block; padding: 0; }
+  .layout main { max-width: var(--maxw); margin: 0 auto; padding: 0 28px 64px; }
+  .toc { position: fixed; top: 0; left: 0; bottom: 0; width: 260px; max-height: none; z-index: 50; background: var(--bg);
+    border-right: 1px solid var(--rule); padding: 20px 12px; transform: translateX(-105%); transition: transform 0.25s ease; box-shadow: 4px 0 24px rgba(0,0,0,0.12); }
+  .toc.open { transform: translateX(0); }
+  .toc-open { display: inline-flex; position: fixed; top: 12px; left: 12px; z-index: 30; background: var(--surface); color: var(--ink-2);
+    border: 1px solid var(--rule); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+}
+.tldr { max-width: 860px; margin: 18px auto 6px; padding: 14px 18px; border-radius: 12px; background: var(--accent-soft); border: 1px solid var(--rule); }
+.tldr p { margin: 0; color: var(--ink); font-size: 14.5px; }
+.tldr strong { color: var(--accent); margin-right: 6px; }
+.carousel { position: relative; margin: 24px auto 8px; max-width: 700px; }
+.car-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 10px; outline: none; }
+.car-track::-webkit-scrollbar { display: none; }
+.car-slide { flex: 0 0 100%; scroll-snap-align: center; margin: 0; }
+.car-slide video { width: 100%; display: block; border-radius: 10px; background: #0e0f14; aspect-ratio: 16 / 9; }
+.car-slide figcaption { text-align: center; }
+.car-btn { position: absolute; top: calc(50% - 30px); width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(14,15,20,0.55); color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+.car-btn:hover { background: rgba(14,15,20,0.8); }
+.car-btn.prev { left: 10px; } .car-btn.next { right: 10px; }
+.r3-media { position: relative; }
+.r3-box { position: absolute; inset: 0; display: flex; flex-direction: column; background: #0e0f14; border-radius: 10px; overflow: hidden; }
+.r3-box[hidden] { display: none; }
+.r3-strip { display: flex; gap: 1%; padding: 1.2% 1.5% 0.6%; justify-content: center; }
+.r3-strip img { width: 8.9%; aspect-ratio: 1; object-fit: cover; border-radius: 2px; }
+.r3-canvas { flex: 1; width: 100%; min-height: 0; display: block; touch-action: none; cursor: grab; }
+.r3-canvas:active { cursor: grabbing; }
+.r3-label { position: absolute; left: 14px; bottom: 10px; color: #f5f5fa; font-weight: 700; font-size: 15px; pointer-events: none; }
+.r3-hint { position: absolute; left: 50%; top: 21%; text-shadow: 0 0 4px #0e0f14; transform: translateX(-50%); color: rgba(220,222,235,0.75); font-size: 11.5px; pointer-events: none; transition: opacity 1.2s; white-space: nowrap; }
+.r3-hint.fade { opacity: 0; }
+.r3-bar { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; }
+.r3-btn { font: inherit; font-size: 12px; padding: 4px 11px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.3); background: rgba(14,15,20,0.6); color: #f5f5fa; cursor: pointer; }
+.r3-btn:hover { background: rgba(139,92,246,0.75); }
+.r3-btn[hidden] { display: none; }
+@media (max-width: 600px) { .r3-hint { display: none; } }
+.car-dots { display: flex; justify-content: center; gap: 8px; margin-top: 6px; }
+.car-dots button { width: 9px; height: 9px; padding: 0; border-radius: 50%; border: none; background: var(--rule); cursor: pointer; }
+.car-dots button[aria-selected="true"] { background: var(--accent); width: 22px; border-radius: 5px; }
+.teaser { max-width: 760px; margin-left: auto; margin-right: auto; }
+/* slightly smaller tables and plot figures */
+.tablewrap { max-width: 88%; margin-left: auto; margin-right: auto; }
+.tcap { max-width: 88%; margin-left: auto; margin-right: auto; }
+.paperfig { max-width: 88%; margin-left: auto; margin-right: auto; }
+.paperfig img { max-height: 250px; }
+@media (max-width: 760px) { .tablewrap, .tcap, .paperfig { max-width: 100%; } }
+.tablewrap.compact th, .tablewrap.compact td { padding: 5px 3px; }
+.tablewrap.compact th:first-child, .tablewrap.compact td:first-child { padding-left: 8px; padding-right: 8px; }
+</style>
+</head>
+<body>
+<button class="toc-open" id="tocOpen" type="button" aria-controls="toc" aria-expanded="false">☰ Contents</button>
+<div class="toc-scrim" id="tocScrim" hidden></div>
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Contents">
+  <a class="toc-top" href="#top">Overview</a>
+  <ol>
+    <li><a href="#reconstructions">Reconstructions</a>
+    </li>
+    <li><a href="#method">Method</a>
+    <ol>
+      <li class="sub"><a href="#where-the-asymmetry-lives">Where the asymmetry lives</a></li>
+      <li class="sub"><a href="#alignment-signals">Alignment signals</a></li>
+    </ol></li>
+    <li><a href="#results">Results</a>
+    <ol>
+      <li class="sub"><a href="#trained-on-re10k">Trained on RE10K</a></li>
+      <li class="sub"><a href="#trained-on-dl3dv">Trained on DL3DV</a></li>
+      <li class="sub"><a href="#camera-trajectories">Camera trajectories</a></li>
+    </ol></li>
+    <li><a href="#analyses">Analyses</a>
+    <ol>
+      <li class="sub"><a href="#full-interaction">Full interaction</a></li>
+      <li class="sub"><a href="#asymmetric-feature-alignment">Asymmetric feature alignment</a></li>
+      <li class="sub"><a href="#ssl-as-pretraining">SSL as pretraining</a></li>
+    </ol></li>
+    <li><a href="#dynamic-videos">Dynamic videos</a>
+    <ol>
+      <li class="sub"><a href="#dynamic-trajectories">Camera trajectories</a></li>
+    </ol></li>
+    <li><a href="#bibtex">BibTeX</a>
+    </li>
+  </ol>
+</nav>
+<main>
+
+<h1 id="top">Rethinking Asymmetry in<br>Self-Supervised 3D Geometry Learning</h1>
+<p class="authors">
+  <span><a href="https://gynjn.github.io/info/" target="_blank" rel="noopener">Gyeongjin Kang</a><sup>1</sup></span><span><a href="https://freemancheng.com" target="_blank" rel="noopener">Freeman Cheng</a><sup>2</sup></span><span><a href="https://botaoye.github.io" target="_blank" rel="noopener">Botao Ye</a><sup>3</sup></span><span><a href="https://www.wlyu.me" target="_blank" rel="noopener">Weijie Lyu</a><sup>2</sup></span><br>
+  <span><a href="https://faculty.ucmerced.edu/mhyang/" target="_blank" rel="noopener">Ming-Hsuan Yang</a><sup>2</sup></span><span><a href="https://silverbottlep.github.io" target="_blank" rel="noopener">Eunbyung Park</a><sup>1</sup></span>
+</p>
+<p class="affil"><sup>1</sup>Yonsei University &nbsp; <sup>2</sup>UC Merced &nbsp; <sup>3</sup>ETH Zurich</p>
+<div class="links">
+  <span class="btn soon">arXiv (coming soon)</span>
+  <a class="btn" href="https://github.com/Gynjn/rethinking-asymmetry" target="_blank" rel="noopener">Code</a>
+</div>
+
+<div class="tldr" id="tldr">
+  <p><strong>TL;DR</strong> Rather than masking images from the network, we mask them only from the 3D representation, so every image interacts with all others in one unified network to estimate geometry. Trained without any 3D labels, this improves camera pose and depth over prior self-supervised methods.</p>
+</div>
+
+<figure class="teaser">
+  <img src="static/img/teaser.png" alt="Ten unposed input images and predicted depth for DL3DV, NRGBD, ScanNet and RealEstate10K, with the reconstructed point cloud and predicted cameras for each, and three bar charts of pose accuracy.">
+  <figcaption><strong>Top:</strong> predicted depth and the point cloud lifted with predicted cameras, from 10 unposed images in one forward pass (DL3DV-trained; NRGBD, ScanNet and RealEstate10K are unseen). <strong>Bottom:</strong> RPA@5 gain over NAS3R and E-RayZer at 10 views, and pose AUC@30 of SL, SSL and SSL+SFT in our analysis setting.</figcaption>
+</figure>
+
+<h2 id="reconstructions">Reconstructions</h2>
+<p>One forward pass over 10 unposed images (DL3DV-trained model). Points are the model's predicted depth, lifted with its predicted cameras (purple). No ground truth is used, and points inconsistent across views are removed.</p>
+<div class="carousel" id="reconCarousel" aria-roledescription="carousel" aria-label="Reconstruction clips">
+  <div class="car-track" tabindex="0">
+    <figure class="car-slide" aria-roledescription="slide" aria-label="1 of 9: DL3DV" data-recon="dl3dv"><video src="static/video/recon_dl3dv.mp4" muted loop playsinline preload="auto"></video><figcaption>DL3DV · 1/9</figcaption></figure>
+    <figure class="car-slide" aria-roledescription="slide" aria-label="2 of 9: DL3DV" data-recon="dl3dv_2"><video src="static/video/recon_dl3dv_2.mp4" muted loop playsinline preload="none"></video><figcaption>DL3DV · 2/9</figcaption></figure>
+    <figure class="car-slide" aria-roledescription="slide" aria-label="3 of 9: DL3DV" data-recon="dl3dv_3"><video src="static/video/recon_dl3dv_3.mp4" muted loop playsinline preload="none"></video><figcaption>DL3DV · 3/9</figcaption></figure>
+    <figure class="car-slide" aria-roledescription="slide" aria-label="4 of 9: NRGBD (zero-shot)" data-recon="nrgbd"><video src="static/video/recon_nrgbd.mp4" muted loop playsinline preload="none"></video><figcaption>NRGBD (zero-shot) · 4/9</figcaption></figure>
+    <figure class="car-slide" aria-roledescription="slide" aria-label="5 of 9: NRGBD (zero-shot)" data-recon="nrgbd_2"><video src="static/video/recon_nrgbd_2.mp4" muted loop playsinline preload="none"></video><figcaption>NRGBD (zero-shot) · 5/9</figcaption></figure>
+    <figure class="car-slide" aria-roledescription="slide" aria-label="6 of 9: ScanNet v2 (zero-shot)" data-recon="scannet"><video src="static/video/recon_scannet.mp4" muted loop playsinline preload="none"></video><figcaption>ScanNet v2 (zero-shot) · 6/9</figcaption></figure>
+    <figure class="car-slide" aria-roledescription="slide" aria-label="7 of 9: ScanNet v2 (zero-shot)" data-recon="scannet_2"><video src="static/video/recon_scannet_2.mp4" muted loop playsinline preload="none"></video><figcaption>ScanNet v2 (zero-shot) · 7/9</figcaption></figure>
+    <figure class="car-slide" aria-roledescription="slide" aria-label="8 of 9: RealEstate10K (zero-shot)" data-recon="re10k"><video src="static/video/recon_re10k.mp4" muted loop playsinline preload="none"></video><figcaption>RealEstate10K (zero-shot) · 8/9</figcaption></figure>
+    <figure class="car-slide" aria-roledescription="slide" aria-label="9 of 9: RealEstate10K (zero-shot)" data-recon="re10k_2"><video src="static/video/recon_re10k_2.mp4" muted loop playsinline preload="none"></video><figcaption>RealEstate10K (zero-shot) · 9/9</figcaption></figure>
+  </div>
+  <button class="car-btn prev" type="button" aria-label="Previous clip">‹</button>
+  <button class="car-btn next" type="button" aria-label="Next clip">›</button>
+  <div class="car-dots" role="tablist"></div>
+</div>
+
+<h2 id="method">Method</h2>
+<h3 id="where-the-asymmetry-lives">Where should the asymmetry live?</h3>
+<p>A self-supervised objective needs an asymmetry between what the model sees and what it must explain; otherwise trivial solutions satisfy it. Prior pose-free methods place this asymmetry in the <em>input space</em>. E-RayZer splits camera and geometry prediction into two backbones so that geometry sees only context views, and NAS3R masks attention so that context views attend only among themselves.</p>
+<p>When a held-out view lies between context views, the context views already describe the same scene. Hiding the held-out view from the network hides no geometry; it only removes correspondence. We instead place the asymmetry in the <strong>3D representation</strong>: a shared backbone lets every view inform depth and pose, while the rendered scene is built from context-view Gaussians only, so a held-out view is never rendered from its own prediction.</p>
+<div class="figrow">
+  <figure class="figcard tall"><span class="figlabel">Where the asymmetry is placed</span><img src="static/img/fig_designs.jpg" alt="Three designs: (a) separate camera and geometry estimators, (b) one estimator with masked attention, (c) one estimator with full interaction (ours); all build 3D geometry from context views."></figure>
+  <figure class="figcard"><span class="figlabel">Different view sets, same scene</span><img src="static/img/fig_same_scene.jpg" alt="All views, the held-out subset and the context subset depict the same underlying 3D structure."></figure>
+  <figure class="figcard"  id="architecture"><span class="figlabel">Architecture</span><img src="static/img/fig_arch.jpg" alt="Pipeline: a visual encoder tokenizes each view, a camera token is added, a unified estimator with alternating attention processes all views, a DPT head predicts Gaussian attributes and a relative pose head predicts cameras."></figure>
+</div>
+<p class="rowcap"><strong>Left:</strong> all designs build the 3D scene from context (C) views. Separate backbones (a) and masked attention (b) restrict interaction with held-out (H) views, while ours (c) allows full cross-view attention and excludes held-out views only from the 3D representation. <strong>Top right:</strong> when held-out views lie between context views (the interpolation setting), the context views depict the same scene as the full view set. <strong>Bottom right:</strong> one estimator processes context and held-out views; a DPT head predicts depth and Gaussian attributes, a pose head predicts cameras, and context-view depths are unprojected and rendered at the held-out poses.</p>
+
+
+
+
+<h3 id="alignment-signals">Beyond rendering: two alignment signals</h3>
+<p><strong>Asymmetric feature alignment.</strong> A model sees a scene more completely from many views than from a few. We turn this gap into a training signal. An EMA teacher encodes all views, the student encodes a sparse subset, and the student's features are pulled toward the teacher's with a cosine loss. Matching features rather than depth maps keeps the teacher's depth and scale errors from being copied.</p>
+
+<p><strong>Semantic guidance.</strong> The rendering loss is local and pixel-wise. We additionally align the encoder features with those of a frozen vision foundation model, which supplies structure where photometric cues are weak, such as textureless or repetitive regions.</p>
+<div class="eq">ℒ = ℒ<sub>nvs</sub> + λ<sub>align</sub> ℒ<sub>align</sub> + λ<sub>sem</sub> ℒ<sub>sem</sub></div>
+<p>None of the three signals uses geometric annotation.</p>
+
+<h2 id="results">Results</h2>
+<p>All comparisons use 10 input views, released baseline checkpoints and the baselines' evaluation protocols. Pose is scored by relative pose accuracy (RPA, %) at 3° and 5°, and depth by AbsRel and δ&lt;1.25 after per-view median alignment. Shaded cells mark the best per column.</p>
+
+<h3 id="trained-on-re10k">Trained on RealEstate10K</h3>
+<div class="tablewrap compact"><table>
+<thead>
+<tr><th rowspan="2">Method</th><th rowspan="2">3D prior</th><th rowspan="2">Params</th><th class="sep" colspan="2">RE10K (trained)</th><th class="sep" colspan="2">DL3DV</th><th class="sep" colspan="4">ScanNet v2</th><th class="sep" colspan="4">NRGBD</th></tr>
+<tr><th class="sep">RPA@3↑</th><th>@5↑</th><th class="sep">RPA@3↑</th><th>@5↑</th><th class="sep">RPA@3↑</th><th>@5↑</th><th>AbsRel↓</th><th>δ&lt;1.25↑</th><th class="sep">RPA@3↑</th><th>@5↑</th><th>AbsRel↓</th><th>δ&lt;1.25↑</th></tr>
+</thead>
+<tbody>
+<tr><td>SPFSplat</td><td>MASt3R</td><td>629M</td><td class="sep">64.2</td><td>78.1</td><td class="sep">10.5</td><td>19.3</td><td class="sep">2.0</td><td>5.7</td><td class="b">0.223</td><td>0.757</td><td class="sep">3.2</td><td>14.1</td><td>0.156</td><td>0.803</td></tr>
+<tr><td>NAS3R</td><td>–</td><td>1.22B</td><td class="sep">47.4</td><td>67.2</td><td class="sep">1.5</td><td>3.5</td><td class="sep">0.1</td><td>0.5</td><td>0.381</td><td>0.604</td><td class="sep">3.7</td><td>7.2</td><td>0.214</td><td>0.630</td></tr>
+<tr class="ours"><td>Ours</td><td>–</td><td>183M</td><td class="sep b">65.7</td><td class="b">80.2</td><td class="sep b">14.2</td><td class="b">26.4</td><td class="sep b">2.7</td><td class="b">7.1</td><td>0.226</td><td class="b">0.785</td><td class="sep b">16.5</td><td class="b">30.1</td><td class="b">0.106</td><td class="b">0.878</td></tr>
+</tbody></table></div>
+<p class="tcap">Camera pose and multi-view depth with 10 input views, all models trained on RE10K. SPFSplat initializes its backbone from MASt3R, which is trained with 3D supervision, and takes ground-truth intrinsics as input.</p>
+
+<h3 id="trained-on-dl3dv">Trained on DL3DV</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr><th rowspan="2">Method</th><th rowspan="2">Params</th><th class="sep" colspan="2">DL3DV (trained)</th><th class="sep" colspan="2">RE10K</th><th class="sep" colspan="4">ScanNet v2</th><th class="sep" colspan="4">NRGBD</th></tr>
+<tr><th class="sep">RPA@3↑</th><th>@5↑</th><th class="sep">RPA@3↑</th><th>@5↑</th><th class="sep">RPA@3↑</th><th>@5↑</th><th>AbsRel↓</th><th>δ&lt;1.25↑</th><th class="sep">RPA@3↑</th><th>@5↑</th><th>AbsRel↓</th><th>δ&lt;1.25↑</th></tr>
+</thead>
+<tbody>
+<tr><td>E-RayZer</td><td>246M</td><td class="sep">60.3</td><td>72.1</td><td class="sep">54.6</td><td>74.5</td><td class="sep">4.9</td><td>12.3</td><td>0.168</td><td>0.819</td><td class="sep">35.6</td><td>61.5</td><td>0.095</td><td>0.908</td></tr>
+<tr class="ours"><td>Ours</td><td>183M</td><td class="sep b">70.0</td><td class="b">79.7</td><td class="sep b">57.7</td><td class="b">75.3</td><td class="sep b">6.6</td><td class="b">16.7</td><td class="b">0.125</td><td class="b">0.872</td><td class="sep b">63.5</td><td class="b">81.5</td><td class="b">0.082</td><td class="b">0.917</td></tr>
+</tbody></table></div>
+<p class="tcap">Camera pose and multi-view depth with 10 input views, both models trained on DL3DV. E-RayZer decodes depth only for its context views, so for this comparison our depth head also decodes only the context views and both methods are scored on the same views.</p>
+
+<h3 id="camera-trajectories">Recovered camera trajectories (interactive)</h3>
+<p>Predicted cameras from 10 unposed views (color) against ground truth (white), after one Sim(3) alignment of the camera centers (Umeyama). APE is the RMSE of the aligned camera centers.</p>
+<div class="traj">
+  <div class="traj-controls">
+    <label class="traj-sel"><span>Model</span>
+      <select id="trajTrained"><option value="RE10K-trained">Trained on RE10K</option><option value="DL3DV-trained">Trained on DL3DV</option></select>
+    </label>
+    <label class="traj-sel"><span>Scene</span><select id="trajScene"></select></label>
+    <div class="traj-nav">
+      <button type="button" id="trajPrev" aria-label="Previous scene">‹</button>
+      <button type="button" id="trajNext" aria-label="Next scene">›</button>
+      <button type="button" id="trajReset">Reset view</button>
+    </div>
+  </div>
+  <div class="traj-thumbs" id="trajThumbs"></div>
+  <div class="traj-panels" id="trajPanels"><p class="traj-msg">Loading the 3D viewer…</p></div>
+  <p class="traj-hint">Cameras appear in temporal order, then the view orbits. Drag to rotate, scroll to zoom, right-drag or shift-drag to pan, double-click or “Reset view” to replay. </p>
+</div>
+
+
+<h2 id="analyses">Analyses</h2>
+<p>Controlled experiments on DL3DV: all variants share the backbone, data and compute, and are evaluated on a fixed 48-frame span. Depth is compared against MoGe-2 pseudo ground truth, so these numbers are not directly comparable to the main tables.</p>
+
+<h3 id="full-interaction">Full interaction vs. input-space asymmetry</h3>
+<figure class="paperfig"><img src="static/img/fig_full_view.png" alt="Line plots of AbsRel, delta below 1.25, RPA@3 and RPA@5 versus number of views for separated, masked-view and full-view variants." loading="lazy"><figcaption>All three variants share the representation and backbone (the separated variant has an additional 12-layer transformer for geometry). Placing the asymmetry in the 3D representation (full-view) gives the most accurate depth and pose at every view count in this setting.</figcaption></figure>
+
+<h3 id="asymmetric-feature-alignment">Asymmetric feature alignment</h3>
+<figure class="paperfig"><img src="static/img/fig_align.png" alt="Multi-view depth and pose versus number of views with and without alignment, and single-view depth bars." loading="lazy"><figcaption>Alignment improves multi-view depth and pose at every view count, with larger gains for fewer views, and the largest gain on single-view depth, where the rendering loss cannot directly supervise.</figcaption></figure>
+<div class="tablewrap"><table>
+<thead>
+<tr><th rowspan="2">Method</th><th class="sep" colspan="2">Camera pose</th><th class="sep" colspan="3">Multi-view depth</th><th class="sep" colspan="3">Single-view depth</th></tr>
+<tr><th class="sep">RPA@3↑</th><th>RPA@5↑</th><th class="sep">AbsRel↓</th><th>δ&lt;1.25↑</th><th>δ&lt;1.25²↑</th><th class="sep">AbsRel↓</th><th>δ&lt;1.25↑</th><th>δ&lt;1.25²↑</th></tr>
+</thead>
+<tbody>
+<tr><td>No alignment</td><td class="sep">66.6</td><td>81.7</td><td class="sep">0.195</td><td>0.758</td><td>0.901</td><td class="sep">0.230</td><td>0.638</td><td>0.850</td></tr>
+<tr><td>Depth alignment</td><td class="sep">63.4</td><td>81.7</td><td class="sep">0.244</td><td>0.692</td><td>0.854</td><td class="sep">0.248</td><td>0.651</td><td>0.844</td></tr>
+<tr class="ours"><td>Feature alignment (ours)</td><td class="sep b">69.8</td><td class="b">84.6</td><td class="sep b">0.191</td><td class="b">0.768</td><td class="b">0.905</td><td class="sep b">0.191</td><td class="b">0.729</td><td class="b">0.901</td></tr>
+</tbody></table></div>
+<p class="tcap">Context alignment analysis on DL3DV. Aligning depth maps directly does not help in this setting, while aligning features does.</p>
+<figure class="paperfig"><img src="static/img/fig_align_curves.png" alt="Single-view depth metrics and shape correlation over training steps for no alignment, depth alignment and feature alignment." loading="lazy"><figcaption>Single-view depth over training. The shaded region marks the ramp-up of the alignment loss. Under depth alignment, the shape correlation ρ(log ẑ, log z) against pseudo ground truth declines, so errors of the dense-context depth are passed on as wrong geometry.</figcaption></figure>
+
+<h3 id="ssl-as-pretraining">Self-supervised pretraining for supervised fine-tuning</h3>
+<div class="tablewrap compact"><table>
+<thead>
+<tr><th rowspan="2">Method</th><th class="sep" colspan="4">DL3DV (trained)</th><th class="sep" colspan="4">ScanNet v2</th><th class="sep" colspan="4">NRGBD</th></tr>
+<tr><th class="sep">RPA@3↑</th><th>@5↑</th><th>@10↑</th><th>AUC@30↑</th><th class="sep">RPA@3↑</th><th>@5↑</th><th>@10↑</th><th>AUC@30↑</th><th class="sep">RPA@3↑</th><th>@5↑</th><th>@10↑</th><th>AUC@30↑</th></tr>
+</thead>
+<tbody>
+<tr><td>SSL (100K iters)</td><td class="sep">66.6</td><td>81.7</td><td>91.7</td><td>88.0</td><td class="sep">1.2</td><td>5.2</td><td>17.6</td><td>29.8</td><td class="sep">16.5</td><td>37.8</td><td>74.3</td><td>72.3</td></tr>
+<tr><td>SL (200K iters)</td><td class="sep">50.8</td><td>74.6</td><td>92.5</td><td>87.2</td><td class="sep">0.7</td><td>3.2</td><td>13.5</td><td>25.2</td><td class="sep">16.3</td><td>41.2</td><td>82.7</td><td>77.2</td></tr>
+<tr class="ours"><td>SSL+SFT (100K + 50K iters)</td><td class="sep b">73.4</td><td class="b">89.3</td><td class="b">97.2</td><td class="b">92.4</td><td class="sep b">3.4</td><td class="b">10.1</td><td class="b">28.4</td><td class="b">41.4</td><td class="sep b">33.3</td><td class="b">62.0</td><td class="b">87.9</td><td class="b">81.9</td></tr>
+</tbody></table></div>
+<p class="tcap">Same architecture and data throughout, analysis protocol. SSL alone, trained for half the iterations, is comparable to SL: it is more accurate at strict pose thresholds, while SL is better on some looser metrics. Fine-tuning the SSL model with the same supervision as SL surpasses both on every reported metric with fewer total iterations than SL.</p>
+
+<h2 id="dynamic-videos">Dynamic monocular videos</h2>
+<p>We also explore training on dynamic monocular videos from SpatialVID, keeping the architecture and objective unchanged, so the model still assumes a static scene. We compare a model trained on DL3DV alone with the same model trained on DL3DV and SpatialVID, evaluating camera pose on held-out SpatialVID videos grouped by the dataset's metadata (10 views over a 32-frame span).</p>
+<div class="tablewrap compact" style="max-width:620px">
+<table>
+<thead>
+<tr><th rowspan="2">Training data</th><th class="sep">DL3DV</th><th class="sep" colspan="3">SpatialVID</th></tr>
+<tr><th class="sep">benchmark</th><th class="sep">dyn_low</th><th>dyn_high</th><th>crowded</th></tr>
+</thead>
+<tbody>
+<tr><td>DL3DV</td><td class="sep b">80.7 / 87.1</td><td class="sep">36.9 / 70.0</td><td>25.4 / 55.7</td><td>24.1 / 55.1</td></tr>
+<tr class="ours"><td>DL3DV + SpatialVID</td><td class="sep">79.1 / 85.8</td><td class="sep b">74.7 / 86.0</td><td class="b">73.9 / 84.0</td><td class="b">87.4 / 89.2</td></tr>
+</tbody></table></div>
+<p class="tcap" style="max-width:620px">RPA@5 / AUC@30 (%) with 10 input views. SpatialVID test sets have low or high ratios of dynamic content, or crowds, and use a 32-frame span. DL3DV uses a 48-frame span.</p>
+
+<p>Without any architectural change, the model tends to assign low opacity to Gaussians on moving objects, so they are largely absent from renderings at held-out views while the static background is reconstructed.</p>
+<figure class="paperfig"><img src="static/img/fig_dynamic_render.jpg" alt="Five input views and two target views with renderings for a crowded square and a mountain road with oncoming cars. Moving people and cars are largely absent from the renderings." loading="lazy"><figcaption>Held-out SpatialVID scenes rendered from five input views. Although the model assumes a static scene, moving people (top) and vehicles (bottom) are largely absent from the renderings at the target views, while the static background is reconstructed.</figcaption></figure>
+
+<h3 id="dynamic-trajectories">Camera trajectories on dynamic videos (interactive)</h3>
+<p>Predicted cameras (color) against ground truth (white) on held-out SpatialVID videos, after one Sim(3) alignment of the camera centers.</p>
+<div class="traj">
+  <div class="traj-controls">
+    <label class="traj-sel"><span>Test set</span>
+      <select id="dynTrained"><option value="Many moving objects">Many moving objects</option><option value="Crowded">Crowded</option></select>
+    </label>
+    <label class="traj-sel"><span>Scene</span><select id="dynScene"></select></label>
+    <div class="traj-nav">
+      <button type="button" id="dynPrev" aria-label="Previous scene">‹</button>
+      <button type="button" id="dynNext" aria-label="Next scene">›</button>
+      <button type="button" id="dynReset">Reset view</button>
+    </div>
+  </div>
+  <div class="traj-thumbs" id="dynThumbs"></div>
+  <div class="traj-panels" id="dynPanels"><p class="traj-msg">Loading the 3D viewer…</p></div>
+  <p class="traj-hint">Drag to rotate, scroll to zoom, right-drag or shift-drag to pan, double-click or “Reset view” to replay.</p>
+</div>
+
+<h2 id="bibtex">BibTeX</h2>
+<pre>@article{kang2026rethinking,
+  title   = {Rethinking Asymmetry in Self-Supervised 3D Geometry Learning},
+  author  = {Kang, Gyeongjin and Cheng, Freeman and Ye, Botao and Lyu, Weijie and
+             Yang, Ming-Hsuan and Park, Eunbyung},
+  journal = {arXiv preprint},
+  year    = {2026}
+}</pre>
+
+
+</main>
+</div>
+<script src="static/data/trajectories.js" defer></script>
+<script src="static/data/dyn_trajectories.js" defer></script>
+<script src="static/js/trajectories.js" defer></script>
+
+<script>
+(function () {
+  var toc = document.getElementById('toc'), openBtn = document.getElementById('tocOpen'), scrim = document.getElementById('tocScrim');
+  function setOpen(v) { toc.classList.toggle('open', v); scrim.hidden = !v; openBtn.setAttribute('aria-expanded', v ? 'true' : 'false'); }
+  openBtn.addEventListener('click', function () { setOpen(!toc.classList.contains('open')); });
+  scrim.addEventListener('click', function () { setOpen(false); });
+  toc.addEventListener('click', function (e) { if (e.target.closest('a')) setOpen(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setOpen(false); });
+  var links = Array.prototype.slice.call(toc.querySelectorAll('a[href^="#"]'));
+  var targets = links.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); });
+  function spy() {
+    var y = window.scrollY + 120, cur = 0;
+    targets.forEach(function (t, i) { if (t && t.offsetTop <= y) cur = i; });
+    // at the very bottom the last sections can never reach the top of the window: select the last one
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) cur = targets.length - 1;
+    links.forEach(function (a, i) { a.classList.toggle('active', i === cur); });
+  }
+  window.addEventListener('scroll', spy, { passive: true });
+  window.addEventListener('resize', spy);
+  spy();
+})();
+</script>
+<script>
+(function () {   // reconstruction carousel: swipe / arrows / dots / keys; only the visible clip plays
+  var root = document.getElementById('reconCarousel'); if (!root) return;
+  var track = root.querySelector('.car-track'), slides = [].slice.call(root.querySelectorAll('.car-slide'));
+  var dots = root.querySelector('.car-dots'), cur = 0, visible = false;
+  slides.forEach(function (sl, i) {
+    var d = document.createElement('button'); d.type = 'button'; d.setAttribute('role', 'tab');
+    d.setAttribute('aria-label', 'Clip ' + (i + 1)); d.addEventListener('click', function () { go(i); }); dots.appendChild(d);
+  });
+  function go(i) { i = (i + slides.length) % slides.length; track.scrollTo({ left: slides[i].offsetLeft - track.offsetLeft, behavior: 'smooth' }); }
+  function setCur(i) {
+    if (i !== cur && slides[cur] && slides[cur].r3exit) slides[cur].r3exit();
+    cur = i;
+    [].forEach.call(dots.children, function (d, k) { d.setAttribute('aria-selected', k === i ? 'true' : 'false'); });
+    slides.forEach(function (sl, k) {
+      var v = sl.querySelector('video');
+      if (k === i && visible && !sl.classList.contains('is-3d')) { if (v.preload === 'none') v.preload = 'auto'; var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+      else v.pause();
+      if (Math.abs(k - i) === 1 && v.preload === 'none') v.preload = 'metadata';
+    });
+  }
+  root.querySelector('.prev').addEventListener('click', function () { go(cur - 1); });
+  root.querySelector('.next').addEventListener('click', function () { go(cur + 1); });
+  track.addEventListener('keydown', function (e) { if (e.key === 'ArrowLeft') { e.preventDefault(); go(cur - 1); } if (e.key === 'ArrowRight') { e.preventDefault(); go(cur + 1); } });
+  var t; track.addEventListener('scroll', function () {
+    clearTimeout(t); t = setTimeout(function () { setCur(Math.round(track.scrollLeft / track.clientWidth)); }, 80);
+  }, { passive: true });
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (es) { visible = es[0].isIntersecting; setCur(cur); }, { threshold: 0.25 }).observe(root);
+  } else { visible = true; }
+  setCur(0);
+})();
+</script>
+<script src="static/js/recon3d.js"></script>
+</body>
+</html>
