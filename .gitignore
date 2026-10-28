@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pt
+*.pth
+*.ckpt
+*.mat
+checkpoints/
+experiments/
+wandb/
+outputs/
+figs/
+*.mp4
+.DS_Store

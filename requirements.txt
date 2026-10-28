@@ -1,0 +1,14 @@
+# Tested with Python 3.10, CUDA 11.8 (install torch / torchvision from the matching PyTorch index first).
+torch==2.4.1
+torchvision==0.19.1
+# gsplat: installed separately from https://github.com/QitaoZhao/gsplat (intrinsics gradients), see README
+numpy==1.26.4
+einops>=0.8
+easydict==1.13
+omegaconf==2.1.1
+transformers==4.30.2      # learning-rate schedules only
+scipy>=1.10               # reads the MatConvNet VGG weights
+Pillow>=10.0
+matplotlib>=3.7           # depth previews in inference.py
+pyyaml>=6.0
+wandb==0.18.7             # optional
